@@ -5,9 +5,7 @@ import kotlin.math.roundToInt
 
 enum class TouchState {
     IDLE,
-    TRACKING,
-    LEFT_HELD,
-    RIGHT_HELD
+    TRACKING
 }
 
 class TouchEventParser(
@@ -19,8 +17,14 @@ class TouchEventParser(
 
     var pointerId: Int = -1
         private set
-    var clickFingerId: Int = -1
+
+    var leftClickFingerId: Int = -1
         private set
+    var rightClickFingerId: Int = -1
+        private set
+
+    val isLeftHeld: Boolean get() = leftClickFingerId != -1
+    val isRightHeld: Boolean get() = rightClickFingerId != -1
 
     private var lastPointerX: Float = 0f
     private var lastPointerY: Float = 0f
@@ -40,13 +44,14 @@ class TouchEventParser(
 
         when (action) {
             MotionEvent.ACTION_DOWN -> {
-                // First finger down
+                // First finger down becomes the pointer
                 val id = event.getPointerId(0)
                 pointerId = id
                 visualPointerId = id
+                leftClickFingerId = -1
+                rightClickFingerId = -1
                 visualLeftId = -1
                 visualRightId = -1
-                clickFingerId = -1
                 lastPointerX = event.getX(0)
                 lastPointerY = event.getY(0)
                 pointerDownTime = event.eventTime
@@ -59,7 +64,7 @@ class TouchEventParser(
 
                 val pointerIdx = event.findPointerIndex(pointerId)
                 if (pointerIdx == -1) {
-                    // Pointer lost, reset to this new finger
+                    // Pointer lost, promote this finger to pointer
                     pointerId = newId
                     visualPointerId = newId
                     lastPointerX = newX
@@ -71,10 +76,8 @@ class TouchEventParser(
                 val currentPointerX = event.getX(pointerIdx)
 
                 // Check for simultaneous initial touches within 25ms: center-most finger wins as pointer
-                if (state == TouchState.TRACKING && clickFingerId == -1 && (event.eventTime - pointerDownTime) < 25) {
-                    // If multiple touches arrived almost at once, evaluate positions
+                if (state == TouchState.TRACKING && leftClickFingerId == -1 && rightClickFingerId == -1 && (event.eventTime - pointerDownTime) < 25) {
                     if (event.pointerCount >= 3) {
-                        // Pick center finger among first 3
                         val touches = (0 until 3).map { idx ->
                             Triple(event.getPointerId(idx), event.getX(idx), event.getY(idx))
                         }.sortedBy { it.second }
@@ -88,25 +91,25 @@ class TouchEventParser(
                     }
                 }
 
-                when (state) {
-                    TouchState.TRACKING -> {
-                        clickFingerId = newId
-                        if (newX < currentPointerX) {
-                            // Touch is to the LEFT of pointer
-                            visualLeftId = newId
-                            state = TouchState.LEFT_HELD
-                            sender.sendLeftClick("DOWN")
-                        } else {
-                            // Touch is to the RIGHT of pointer
-                            visualRightId = newId
-                            state = TouchState.RIGHT_HELD
-                            sender.sendRightClick("DOWN")
-                        }
+                // Dual-slot independent click assignment
+                if (newX < currentPointerX) {
+                    // Touch is on the LEFT of the pointer
+                    if (leftClickFingerId == -1) {
+                        // First touch on left: trigger Left Click DOWN
+                        leftClickFingerId = newId
+                        visualLeftId = newId
+                        sender.sendLeftClick("DOWN")
                     }
-                    TouchState.LEFT_HELD, TouchState.RIGHT_HELD -> {
-                        // Third finger while in HELD state is ignored
+                    // Additional finger on the left side is ignored (stays inert [FINGER])
+                } else {
+                    // Touch is on the RIGHT of the pointer
+                    if (rightClickFingerId == -1) {
+                        // First touch on right: trigger Right Click DOWN
+                        rightClickFingerId = newId
+                        visualRightId = newId
+                        sender.sendRightClick("DOWN")
                     }
-                    TouchState.IDLE -> {}
+                    // Additional finger on the right side is ignored (stays inert [FINGER])
                 }
             }
 
@@ -133,34 +136,34 @@ class TouchEventParser(
             MotionEvent.ACTION_POINTER_UP -> {
                 val liftedId = event.getPointerId(actionIndex)
 
-                if (liftedId == clickFingerId) {
-                    // Click finger released
-                    if (state == TouchState.LEFT_HELD) {
-                        sender.sendLeftClick("UP")
-                    } else if (state == TouchState.RIGHT_HELD) {
-                        sender.sendRightClick("UP")
-                    }
-                    clickFingerId = -1
+                if (liftedId == leftClickFingerId) {
+                    // Left click finger released
+                    sender.sendLeftClick("UP")
+                    leftClickFingerId = -1
                     visualLeftId = -1
+                } else if (liftedId == rightClickFingerId) {
+                    // Right click finger released
+                    sender.sendRightClick("UP")
+                    rightClickFingerId = -1
                     visualRightId = -1
-                    state = TouchState.TRACKING
                 } else if (liftedId == pointerId) {
-                    // Pointer finger released while other finger(s) still touching
-                    if (state == TouchState.LEFT_HELD) {
+                    // Pointer finger released while click finger(s) still down
+                    if (leftClickFingerId != -1) {
                         sender.sendLeftClick("UP")
-                    } else if (state == TouchState.RIGHT_HELD) {
+                    }
+                    if (rightClickFingerId != -1) {
                         sender.sendRightClick("UP")
                     }
-                    // Reset to idle until user restarts a clean touch gesture
                     resetState()
                 }
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 // All touches released
-                if (state == TouchState.LEFT_HELD) {
+                if (leftClickFingerId != -1) {
                     sender.sendLeftClick("UP")
-                } else if (state == TouchState.RIGHT_HELD) {
+                }
+                if (rightClickFingerId != -1) {
                     sender.sendRightClick("UP")
                 }
                 resetState()
@@ -171,7 +174,8 @@ class TouchEventParser(
     private fun resetState() {
         state = TouchState.IDLE
         pointerId = -1
-        clickFingerId = -1
+        leftClickFingerId = -1
+        rightClickFingerId = -1
         visualPointerId = -1
         visualLeftId = -1
         visualRightId = -1
