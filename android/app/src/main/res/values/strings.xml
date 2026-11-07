@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">3PointClick</string>
+    <string name="status_connecting">Connecting to PC on port %1$d…</string>
+    <string name="status_connected">Connected to PC (Port %1$d)</string>
+    <string name="status_reconnecting">Disconnected. Reconnecting…</string>
+    <string name="action_settings">Settings</string>
+    <string name="settings_title">Trackpad Settings</string>
+    <string name="speed_label">Sensitivity (Multiplier: %1$.1fx)</string>
+    <string name="port_label">ADB / Server Port</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="instructions_hint">1 finger = Pointer | Left of Pointer = Left Click | Right of Pointer = Right Click\nDouble-tap ⚙ in top-left for Settings</string>
+    <string name="double_tap_hint">Tap again to open Settings</string>
+</resources>

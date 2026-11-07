@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.ThreePointClick" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="android:windowBackground">#121418</item>
+        <item name="android:statusBarColor">#121418</item>
+        <item name="android:navigationBarColor">#121418</item>
+        <item name="colorPrimary">#2196F3</item>
+        <item name="colorSecondary">#00E676</item>
+    </style>
+</resources>

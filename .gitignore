@@ -1,0 +1,25 @@
+# Built binaries & caches
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+
+# Android & Gradle
+.gradle/
+build/
+app/build/
+*/build/
+local.properties
+
+# Android Studio / IntelliJ
+*.iml
+.idea/
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# OS generated
+.DS_Store
+Thumbs.db
