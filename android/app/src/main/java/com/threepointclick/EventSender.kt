@@ -80,6 +80,19 @@ class EventSender(
         }
     }
 
+    fun sendScroll(dx: Int, dy: Int) {
+        if (!isConnected || (dx == 0 && dy == 0)) return
+        val json = "{\"type\":\"SCROLL\",\"dx\":$dx,\"dy\":$dy}"
+        eventChannel.trySend(json)
+    }
+
+    fun sendMiddleClick(action: String) { // "DOWN" or "UP"
+        val json = "{\"type\":\"MIDDLE\",\"action\":\"$action\"}"
+        scope.launch {
+            eventChannel.send(json)
+        }
+    }
+
     private suspend fun connectionLoop() {
         while (scope.isActive) {
             var socket: Socket? = null

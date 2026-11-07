@@ -6,15 +6,18 @@ Communicates over a high-performance, low-latency ADB bridge on **port 8888** �
 
 ---
 
-## 🖐️ Gesture Control
+## 🖐️ Gesture & Control Scheme
 
-| Gesture / Finger Position | Relative to Pointer Finger | Host PC Mouse Action |
+| Control / Gesture | Relative Position / Location | Host PC Mouse Action |
 |---|---|---|
-| **Pointer Finger** (1st touch / middle) | — Reference Point — | Hardware cursor movement (`dx, dy`) |
+| **Pointer Finger** (1st touch / middle) | — Reference Point — | Cursor movement (`dx, dy`) |
 | **Left Click** (Index finger) | Touch arrives with $X < X_{pointer}$ | Left mouse button press / release |
 | **Right Click** (Ring finger) | Touch arrives with $X > X_{pointer}$ | Right mouse button press / release |
 | **Drag & Drop** | Hold left click + move pointer | Click & Drag |
-| **Settings** | **Double-tap `⚙ SETTINGS` button** (top-left) | Adjust sensitivity & connection settings |
+| **Vertical Scroll Bar** *(Optional)* | Left or Right pill bar with center white line | Vertical mouse wheel scroll (`REL_WHEEL`) |
+| **Horizontal Scroll Bar** *(Optional)* | Top or Bottom pill bar with center white line | Horizontal mouse wheel scroll (`REL_HWHEEL`) |
+| **3rd Click Button** *(Optional)* | Round circle at bottom of vertical scroll bar | Middle mouse button click (`BTN_MIDDLE`) |
+| **Settings** | **Double-tap `⚙ SETTINGS` button** (top-left) | Adjust sensitivity, scrollbars & port settings |
 
 ---
 
@@ -24,6 +27,7 @@ Unlike basic X11 mouse emulation which clips to arbitrary window boxes on **Wayl
 - **Full Screen & Multi-Monitor:** Reaches all corners without clipping or warping.
 - **Native Wayland & X11:** Completely bypasses XWayland coordinate boundaries.
 - **Game & FPS Support:** Seamlessly drives camera and cursor in fullscreen games, Steam, Proton, and Wine.
+- **Hardware Scroll & Middle Click:** Native kernel wheel and middle button events.
 
 ---
 
@@ -64,4 +68,4 @@ Or start directly:
 adb shell am start -n com.threepointclick/.MainActivity
 ```
 - The top-center banner turns green: `Connected to PC (Port 8888)`.
-- Use the **top-left `⚙ SETTINGS` button** (requires a **double tap**) to configure sensitivity or change ports.
+- Use the **top-left `⚙ SETTINGS` button** (requires a **double tap**) to configure sensitivity, toggle the Vertical/Horizontal scrollbars, or customize their positions.

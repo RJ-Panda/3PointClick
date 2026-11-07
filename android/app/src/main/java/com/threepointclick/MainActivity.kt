@@ -6,10 +6,13 @@ import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
+import android.view.Gravity
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -22,6 +25,11 @@ class MainActivity : AppCompatActivity(), EventSender.ConnectionListener {
     private lateinit var hintText: TextView
     private lateinit var btnSettings: View
     private lateinit var settingsBtnText: TextView
+
+    private lateinit var vScrollContainer: LinearLayout
+    private lateinit var vScrollBar: VerticalScrollBarView
+    private lateinit var middleClickBtn: MiddleClickButtonView
+    private lateinit var hScrollBar: HorizontalScrollBarView
 
     private lateinit var eventSender: EventSender
     private lateinit var touchParser: TouchEventParser
@@ -49,14 +57,38 @@ class MainActivity : AppCompatActivity(), EventSender.ConnectionListener {
         btnSettings = findViewById(R.id.btnSettings)
         settingsBtnText = findViewById(R.id.settingsBtnText)
 
+        vScrollContainer = findViewById(R.id.vScrollContainer)
+        vScrollBar = findViewById(R.id.vScrollBar)
+        middleClickBtn = findViewById(R.id.middleClickBtn)
+        hScrollBar = findViewById(R.id.hScrollBar)
+
         prefs = getSharedPreferences(SettingsDialog.PREFS_NAME, Context.MODE_PRIVATE)
         val initialSpeed = prefs.getFloat(SettingsDialog.KEY_SPEED, SettingsDialog.DEFAULT_SPEED)
         val initialHost = prefs.getString(SettingsDialog.KEY_HOST, SettingsDialog.DEFAULT_HOST) ?: SettingsDialog.DEFAULT_HOST
         val initialPort = prefs.getInt(SettingsDialog.KEY_PORT, SettingsDialog.DEFAULT_PORT)
 
+        val vScrollEnabled = prefs.getBoolean(SettingsDialog.KEY_ENABLE_V_SCROLL, SettingsDialog.DEFAULT_ENABLE_V_SCROLL)
+        val vScrollRight = prefs.getBoolean(SettingsDialog.KEY_V_SCROLL_RIGHT, SettingsDialog.DEFAULT_V_SCROLL_RIGHT)
+        val hScrollEnabled = prefs.getBoolean(SettingsDialog.KEY_ENABLE_H_SCROLL, SettingsDialog.DEFAULT_ENABLE_H_SCROLL)
+        val hScrollBottom = prefs.getBoolean(SettingsDialog.KEY_H_SCROLL_BOTTOM, SettingsDialog.DEFAULT_H_SCROLL_BOTTOM)
+        val middleClickEnabled = prefs.getBoolean(SettingsDialog.KEY_ENABLE_MIDDLE_CLICK, SettingsDialog.DEFAULT_ENABLE_MIDDLE_CLICK)
+
         eventSender = EventSender(host = initialHost, port = initialPort, listener = this)
         touchParser = TouchEventParser(sender = eventSender, speedMultiplier = initialSpeed)
         touchSurface.eventParser = touchParser
+
+        // Setup scroll & middle-click listeners
+        vScrollBar.onScrollListener = { dy ->
+            eventSender.sendScroll(0, dy)
+        }
+        hScrollBar.onScrollListener = { dx ->
+            eventSender.sendScroll(dx, 0)
+        }
+        middleClickBtn.onMiddleClickListener = { action ->
+            eventSender.sendMiddleClick(action)
+        }
+
+        applyScrollbarSettings(vScrollEnabled, vScrollRight, hScrollEnabled, hScrollBottom, middleClickEnabled)
 
         // Top-left button: requires double tap to avoid accidental triggers while gaming
         btnSettings.setOnClickListener {
@@ -83,10 +115,32 @@ class MainActivity : AppCompatActivity(), EventSender.ConnectionListener {
         eventSender.start()
     }
 
+    private fun applyScrollbarSettings(
+        enableVScroll: Boolean,
+        vScrollRight: Boolean,
+        enableHScroll: Boolean,
+        hScrollBottom: Boolean,
+        enableMiddleClick: Boolean
+    ) {
+        // Vertical Scroll Container
+        vScrollContainer.visibility = if (enableVScroll) View.VISIBLE else View.GONE
+        val vLp = vScrollContainer.layoutParams as FrameLayout.LayoutParams
+        vLp.gravity = if (vScrollRight) (Gravity.END or Gravity.CENTER_VERTICAL) else (Gravity.START or Gravity.CENTER_VERTICAL)
+        vScrollContainer.layoutParams = vLp
+        middleClickBtn.visibility = if (enableMiddleClick) View.VISIBLE else View.GONE
+
+        // Horizontal Scroll Bar
+        hScrollBar.visibility = if (enableHScroll) View.VISIBLE else View.GONE
+        val hLp = hScrollBar.layoutParams as FrameLayout.LayoutParams
+        hLp.gravity = if (hScrollBottom) (Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL) else (Gravity.TOP or Gravity.CENTER_HORIZONTAL)
+        hScrollBar.layoutParams = hLp
+    }
+
     private fun showSettings() {
-        SettingsDialog(this) { newSpeed, newHost, newPort ->
+        SettingsDialog(this) { newSpeed, newHost, newPort, enableV, vRight, enableH, hBottom, enableMiddle ->
             touchParser.speedMultiplier = newSpeed
             eventSender.updateConfig(newHost, newPort)
+            applyScrollbarSettings(enableV, vRight, enableH, hBottom, enableMiddle)
         }.show()
     }
 

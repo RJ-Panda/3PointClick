@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
 3PointClick Server
-TCP listener on port 8888 (over ADB reverse) that receives touch events
+TCP listener on port 8888 (over ADB reverse) that receives touch and scroll events
 from an Android tablet and controls the host PC mouse cursor.
 
 On Linux: Uses evdev /dev/uinput to emulate a true kernel hardware mouse,
-bypassing Wayland/XWayland coordinate clipping restrictions and working
-seamlessly across multi-monitor setups and full-screen games.
+supporting multi-monitor, Wayland, scroll wheels (vertical & horizontal),
+and middle click for games and desktop use.
 Fallback: Uses pynput for cross-platform compatibility.
 """
 
@@ -84,10 +84,11 @@ class UInputMouseBackend:
         self.verbose = verbose
         self.left_held = False
         self.right_held = False
+        self.middle_held = False
         self.lock = threading.Lock()
 
         cap = {
-            e.EV_REL: [e.REL_X, e.REL_Y],
+            e.EV_REL: [e.REL_X, e.REL_Y, e.REL_WHEEL, e.REL_HWHEEL],
             e.EV_KEY: [e.BTN_LEFT, e.BTN_RIGHT, e.BTN_MIDDLE]
         }
         self.ui = evdev.UInput(cap, name="3PointClick Virtual Mouse", vendor=0x1234, product=0x9999, version=1)
@@ -102,6 +103,17 @@ class UInputMouseBackend:
             with self.lock:
                 self.ui.write(self.e.EV_REL, self.e.REL_X, scaled_x)
                 self.ui.write(self.e.EV_REL, self.e.REL_Y, scaled_y)
+                self.ui.syn()
+
+    def scroll(self, dx, dy):
+        if dx != 0 or dy != 0:
+            if self.verbose:
+                print(f"[SCROLL] dx={dx}, dy={dy}")
+            with self.lock:
+                if dy != 0:
+                    self.ui.write(self.e.EV_REL, self.e.REL_WHEEL, dy)
+                if dx != 0:
+                    self.ui.write(self.e.EV_REL, self.e.REL_HWHEEL, dx)
                 self.ui.syn()
 
     def left_down(self):
@@ -140,6 +152,24 @@ class UInputMouseBackend:
                 self.ui.syn()
                 self.right_held = False
 
+    def middle_down(self):
+        with self.lock:
+            if not self.middle_held:
+                if self.verbose:
+                    print("[CLICK] MIDDLE DOWN")
+                self.ui.write(self.e.EV_KEY, self.e.BTN_MIDDLE, 1)
+                self.ui.syn()
+                self.middle_held = True
+
+    def middle_up(self):
+        with self.lock:
+            if self.middle_held:
+                if self.verbose:
+                    print("[CLICK] MIDDLE UP")
+                self.ui.write(self.e.EV_KEY, self.e.BTN_MIDDLE, 0)
+                self.ui.syn()
+                self.middle_held = False
+
     def release_all(self):
         with self.lock:
             if self.left_held:
@@ -150,6 +180,10 @@ class UInputMouseBackend:
                 print("[SAFETY] Releasing held RIGHT button")
                 self.ui.write(self.e.EV_KEY, self.e.BTN_RIGHT, 0)
                 self.right_held = False
+            if self.middle_held:
+                print("[SAFETY] Releasing held MIDDLE button")
+                self.ui.write(self.e.EV_KEY, self.e.BTN_MIDDLE, 0)
+                self.middle_held = False
             self.ui.syn()
 
     def close(self):
@@ -170,6 +204,7 @@ class PynputMouseBackend:
         self.verbose = verbose
         self.left_held = False
         self.right_held = False
+        self.middle_held = False
         self.lock = threading.Lock()
         print("[+] Created pynput mouse backend.")
 
@@ -180,6 +215,12 @@ class PynputMouseBackend:
             if self.verbose:
                 print(f"[MOVE] dx={scaled_x}, dy={scaled_y}")
             self.mouse.move(scaled_x, scaled_y)
+
+    def scroll(self, dx, dy):
+        if dx != 0 or dy != 0:
+            if self.verbose:
+                print(f"[SCROLL] dx={dx}, dy={dy}")
+            self.mouse.scroll(dx, dy)
 
     def left_down(self):
         with self.lock:
@@ -213,6 +254,22 @@ class PynputMouseBackend:
                 self.mouse.release(self.Button.right)
                 self.right_held = False
 
+    def middle_down(self):
+        with self.lock:
+            if not self.middle_held:
+                if self.verbose:
+                    print("[CLICK] MIDDLE DOWN")
+                self.mouse.press(self.Button.middle)
+                self.middle_held = True
+
+    def middle_up(self):
+        with self.lock:
+            if self.middle_held:
+                if self.verbose:
+                    print("[CLICK] MIDDLE UP")
+                self.mouse.release(self.Button.middle)
+                self.middle_held = False
+
     def release_all(self):
         with self.lock:
             if self.left_held:
@@ -223,6 +280,10 @@ class PynputMouseBackend:
                 print("[SAFETY] Releasing held RIGHT button")
                 self.mouse.release(self.Button.right)
                 self.right_held = False
+            if self.middle_held:
+                print("[SAFETY] Releasing held MIDDLE button")
+                self.mouse.release(self.Button.middle)
+                self.middle_held = False
 
     def close(self):
         self.release_all()
@@ -255,7 +316,7 @@ def handle_client(client_sock, client_addr, driver, verbose):
             if client_sock.fileno() == -1:
                 break
             if time.time() - last_msg_time > WATCHDOG_TIMEOUT:
-                if driver.left_held or driver.right_held:
+                if driver.left_held or driver.right_held or driver.middle_held:
                     print("[!] Watchdog: Client silent for > 10s. Releasing held buttons.")
                     driver.release_all()
 
@@ -287,6 +348,11 @@ def handle_client(client_sock, client_addr, driver, verbose):
                         dy = event.get("dy", 0)
                         driver.move(dx, dy)
 
+                    elif ev_type == "SCROLL":
+                        dx = event.get("dx", 0)
+                        dy = event.get("dy", 0)
+                        driver.scroll(dx, dy)
+
                     elif ev_type == "LEFT":
                         action = event.get("action")
                         if action == "DOWN":
@@ -300,6 +366,13 @@ def handle_client(client_sock, client_addr, driver, verbose):
                             driver.right_down()
                         elif action == "UP":
                             driver.right_up()
+
+                    elif ev_type == "MIDDLE":
+                        action = event.get("action")
+                        if action == "DOWN":
+                            driver.middle_down()
+                        elif action == "UP":
+                            driver.middle_up()
 
                     elif ev_type == "PING":
                         if verbose:
