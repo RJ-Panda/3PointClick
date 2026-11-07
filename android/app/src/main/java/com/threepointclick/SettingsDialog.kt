@@ -2,6 +2,8 @@ package com.threepointclick
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.graphics.Color
+import android.graphics.Typeface
 import android.os.Bundle
 import android.view.ViewGroup
 import android.widget.*
@@ -39,9 +41,9 @@ class SettingsDialog(
         const val DEFAULT_PORT = 8888
 
         const val DEFAULT_ENABLE_V_SCROLL = false
-        const val DEFAULT_V_SCROLL_RIGHT = true
+        const val DEFAULT_V_SCROLL_RIGHT = true // Right side by default
         const val DEFAULT_ENABLE_H_SCROLL = false
-        const val DEFAULT_H_SCROLL_BOTTOM = true
+        const val DEFAULT_H_SCROLL_BOTTOM = true // Bottom by default
         const val DEFAULT_ENABLE_MIDDLE_CLICK = true
     }
 
@@ -65,7 +67,7 @@ class SettingsDialog(
         // Title
         val titleText = TextView(context).apply {
             text = context.getString(R.string.settings_title)
-            setTextColor(0xFFFFFFFF.toInt())
+            setTextColor(Color.WHITE)
             textSize = 20f
             setPadding(0, 0, 0, 24)
         }
@@ -104,6 +106,16 @@ class SettingsDialog(
             layout.addView(divider)
         }
 
+        fun createStyledSwitch(text: String, isChecked: Boolean): Switch {
+            return Switch(context).apply {
+                this.text = text
+                this.isChecked = isChecked
+                setTextColor(Color.WHITE)
+                textSize = 14f
+                setPadding(0, 12, 0, 12)
+            }
+        }
+
         addDivider()
 
         // --- SECTION: SCROLL BARS & 3RD CLICK ---
@@ -111,115 +123,61 @@ class SettingsDialog(
             text = "SCROLL BARS & 3RD CLICK"
             setTextColor(0xFF90CAF9.toInt())
             textSize = 12f
-            setTypeface(null, android.graphics.Typeface.BOLD)
-            setPadding(0, 0, 0, 16)
+            setTypeface(null, Typeface.BOLD)
+            setPadding(0, 0, 0, 12)
         }
         layout.addView(scrollSectionHeader)
 
-        // 1. Vertical Scroll Bar Toggle
-        var vScrollEnabled = prefs.getBoolean(KEY_ENABLE_V_SCROLL, DEFAULT_ENABLE_V_SCROLL)
-        var vScrollIsRight = prefs.getBoolean(KEY_V_SCROLL_RIGHT, DEFAULT_V_SCROLL_RIGHT)
-        var middleClickEnabled = prefs.getBoolean(KEY_ENABLE_MIDDLE_CLICK, DEFAULT_ENABLE_MIDDLE_CLICK)
+        // 1. Vertical Scroll Bar Switch
+        val vScrollEnabled = prefs.getBoolean(KEY_ENABLE_V_SCROLL, DEFAULT_ENABLE_V_SCROLL)
+        val vScrollIsRight = prefs.getBoolean(KEY_V_SCROLL_RIGHT, DEFAULT_V_SCROLL_RIGHT)
+        val middleClickEnabled = prefs.getBoolean(KEY_ENABLE_MIDDLE_CLICK, DEFAULT_ENABLE_MIDDLE_CLICK)
 
-        val cbVScroll = CheckBox(context).apply {
-            text = "Vertical Scroll Bar"
-            isChecked = vScrollEnabled
-            setTextColor(0xFFFFFFFF.toInt())
-        }
-        layout.addView(cbVScroll)
+        val swVScroll = createStyledSwitch("Vertical Scroll Bar", vScrollEnabled)
+        layout.addView(swVScroll)
 
         // Vertical options sub-container
         val vOptionsLayout = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(40, 8, 0, 16)
+            setPadding(36, 4, 0, 12)
             visibility = if (vScrollEnabled) android.view.View.VISIBLE else android.view.View.GONE
         }
 
-        val vPosLabel = TextView(context).apply {
-            text = "Position:"
-            setTextColor(0xFFB0BEC5.toInt())
-            textSize = 13f
-        }
-        vOptionsLayout.addView(vPosLabel)
+        // Switch: Place on Left side (Off = Right side by default, On = Left side)
+        val swVLeft = createStyledSwitch("Place on Left side (Default: Right)", !vScrollIsRight)
+        vOptionsLayout.addView(swVLeft)
 
-        val rgVPos = RadioGroup(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-        }
-        val rbVRight = RadioButton(context).apply {
-            text = "Right side"
-            isChecked = vScrollIsRight
-            setTextColor(0xFFECEFF1.toInt())
-        }
-        val rbVLeft = RadioButton(context).apply {
-            text = "Left side"
-            isChecked = !vScrollIsRight
-            setTextColor(0xFFECEFF1.toInt())
-        }
-        rgVPos.addView(rbVRight)
-        rgVPos.addView(rbVLeft)
-        vOptionsLayout.addView(rgVPos)
-
-        // Middle click button toggle (under vertical scroll)
-        val cbMiddleClick = CheckBox(context).apply {
-            text = "3rd Click (Middle Click) Button at bottom"
-            isChecked = middleClickEnabled
-            setTextColor(0xFFFFFFFF.toInt())
-        }
-        vOptionsLayout.addView(cbMiddleClick)
+        // Switch: 3rd Click (Middle Click) Button
+        val swMiddleClick = createStyledSwitch("3rd Click (Middle Click) Button", middleClickEnabled)
+        vOptionsLayout.addView(swMiddleClick)
 
         layout.addView(vOptionsLayout)
 
-        cbVScroll.setOnCheckedChangeListener { _, isChecked ->
-            vScrollEnabled = isChecked
+        swVScroll.setOnCheckedChangeListener { _, isChecked ->
             vOptionsLayout.visibility = if (isChecked) android.view.View.VISIBLE else android.view.View.GONE
         }
 
-        // 2. Horizontal Scroll Bar Toggle
-        var hScrollEnabled = prefs.getBoolean(KEY_ENABLE_H_SCROLL, DEFAULT_ENABLE_H_SCROLL)
-        var hScrollIsBottom = prefs.getBoolean(KEY_H_SCROLL_BOTTOM, DEFAULT_H_SCROLL_BOTTOM)
+        // 2. Horizontal Scroll Bar Switch
+        val hScrollEnabled = prefs.getBoolean(KEY_ENABLE_H_SCROLL, DEFAULT_ENABLE_H_SCROLL)
+        val hScrollIsBottom = prefs.getBoolean(KEY_H_SCROLL_BOTTOM, DEFAULT_H_SCROLL_BOTTOM)
 
-        val cbHScroll = CheckBox(context).apply {
-            text = "Horizontal Scroll Bar"
-            isChecked = hScrollEnabled
-            setTextColor(0xFFFFFFFF.toInt())
-        }
-        layout.addView(cbHScroll)
+        val swHScroll = createStyledSwitch("Horizontal Scroll Bar", hScrollEnabled)
+        layout.addView(swHScroll)
 
         // Horizontal options sub-container
         val hOptionsLayout = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(40, 8, 0, 16)
+            setPadding(36, 4, 0, 12)
             visibility = if (hScrollEnabled) android.view.View.VISIBLE else android.view.View.GONE
         }
 
-        val hPosLabel = TextView(context).apply {
-            text = "Position:"
-            setTextColor(0xFFB0BEC5.toInt())
-            textSize = 13f
-        }
-        hOptionsLayout.addView(hPosLabel)
-
-        val rgHPos = RadioGroup(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-        }
-        val rbHBottom = RadioButton(context).apply {
-            text = "Bottom"
-            isChecked = hScrollIsBottom
-            setTextColor(0xFFECEFF1.toInt())
-        }
-        val rbHTop = RadioButton(context).apply {
-            text = "Top"
-            isChecked = !hScrollIsBottom
-            setTextColor(0xFFECEFF1.toInt())
-        }
-        rgHPos.addView(rbHBottom)
-        rgHPos.addView(rbHTop)
-        hOptionsLayout.addView(rgHPos)
+        // Switch: Place on Top (Off = Bottom by default, On = Top)
+        val swHTop = createStyledSwitch("Place on Top (Default: Bottom)", !hScrollIsBottom)
+        hOptionsLayout.addView(swHTop)
 
         layout.addView(hOptionsLayout)
 
-        cbHScroll.setOnCheckedChangeListener { _, isChecked ->
-            hScrollEnabled = isChecked
+        swHScroll.setOnCheckedChangeListener { _, isChecked ->
             hOptionsLayout.visibility = if (isChecked) android.view.View.VISIBLE else android.view.View.GONE
         }
 
@@ -237,7 +195,7 @@ class SettingsDialog(
         val editPort = EditText(context).apply {
             setText(prefs.getInt(KEY_PORT, DEFAULT_PORT).toString())
             inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            setTextColor(0xFFFFFFFF.toInt())
+            setTextColor(Color.WHITE)
             setBackgroundColor(0xFF2B303C.toInt())
             setPadding(24, 16, 24, 16)
         }
@@ -254,7 +212,7 @@ class SettingsDialog(
         val editHost = EditText(context).apply {
             setText(prefs.getString(KEY_HOST, DEFAULT_HOST))
             inputType = android.text.InputType.TYPE_CLASS_TEXT
-            setTextColor(0xFFFFFFFF.toInt())
+            setTextColor(Color.WHITE)
             setBackgroundColor(0xFF2B303C.toInt())
             setPadding(24, 16, 24, 16)
         }
@@ -276,16 +234,16 @@ class SettingsDialog(
         val saveBtn = Button(context).apply {
             text = context.getString(R.string.save)
             setBackgroundColor(0xFF2196F3.toInt())
-            setTextColor(0xFFFFFFFF.toInt())
+            setTextColor(Color.WHITE)
             setOnClickListener {
                 val portVal = editPort.text.toString().toIntOrNull() ?: DEFAULT_PORT
                 val hostVal = editHost.text.toString().trim().ifEmpty { DEFAULT_HOST }
 
-                val finalVScroll = cbVScroll.isChecked
-                val finalVRight = rbVRight.isChecked
-                val finalHScroll = cbHScroll.isChecked
-                val finalHBottom = rbHBottom.isChecked
-                val finalMiddle = cbMiddleClick.isChecked
+                val finalVScroll = swVScroll.isChecked
+                val finalVRight = !swVLeft.isChecked // Checked = Left, Unchecked = Right
+                val finalHScroll = swHScroll.isChecked
+                val finalHBottom = !swHTop.isChecked // Checked = Top, Unchecked = Bottom
+                val finalMiddle = swMiddleClick.isChecked
 
                 prefs.edit()
                     .putFloat(KEY_SPEED, currentSpeed)

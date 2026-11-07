@@ -127,6 +127,7 @@ class MainActivity : AppCompatActivity(), EventSender.ConnectionListener {
         val vLp = vScrollContainer.layoutParams as FrameLayout.LayoutParams
         vLp.gravity = if (vScrollRight) (Gravity.END or Gravity.CENTER_VERTICAL) else (Gravity.START or Gravity.CENTER_VERTICAL)
         vScrollContainer.layoutParams = vLp
+        vScrollContainer.requestLayout()
         middleClickBtn.visibility = if (enableMiddleClick) View.VISIBLE else View.GONE
 
         // Horizontal Scroll Bar
@@ -134,6 +135,7 @@ class MainActivity : AppCompatActivity(), EventSender.ConnectionListener {
         val hLp = hScrollBar.layoutParams as FrameLayout.LayoutParams
         hLp.gravity = if (hScrollBottom) (Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL) else (Gravity.TOP or Gravity.CENTER_HORIZONTAL)
         hScrollBar.layoutParams = hLp
+        hScrollBar.requestLayout()
     }
 
     private fun showSettings() {
